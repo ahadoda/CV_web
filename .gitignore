@@ -13,5 +13,5 @@ Thumbs.db
 *.log
 npm-debug.log*
 
-# Optional: if you add Node tooling later
-# node_modules/
+# Dependencies (for fetch script)
+node_modules/

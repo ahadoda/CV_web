@@ -9,18 +9,158 @@
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
   <style>
-    .placeholder { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 2rem; text-align: center; }
-    .placeholder__title { font-size: 1.5rem; color: var(--text-muted); margin-bottom: 1rem; }
-    .placeholder__sub { color: var(--text-muted); margin-bottom: 1.5rem; }
-    .placeholder__link { color: var(--accent); text-decoration: none; font-weight: 500; }
-    .placeholder__link:hover { text-decoration: underline; }
+    .pub-page { min-height: 100vh; padding: 2rem; max-width: 48rem; margin: 0 auto; }
+    .pub-page__back { display: inline-block; margin-bottom: 2rem; color: var(--accent); text-decoration: none; font-weight: 500; }
+    .pub-page__back:hover { text-decoration: underline; }
+    .pub-page__title { font-size: 1.75rem; font-weight: 600; margin-bottom: 1.5rem; color: var(--text); }
+    .pub-list { list-style: none; }
+    .pub-item { padding: 1.25rem 0; border-bottom: 1px solid rgba(255,255,255,0.06); }
+    .pub-item:last-child { border-bottom: none; }
+    .pub-item__title { font-weight: 600; margin-bottom: 0.35rem; }
+    .pub-item__title a { color: var(--text); text-decoration: none; }
+    .pub-item__title a:hover { color: var(--accent); text-decoration: underline; }
+    .pub-item__meta { font-size: 0.9rem; color: var(--text-muted); }
+    .pub-loading { color: var(--text-muted); }
+    .pub-error { color: #e06060; margin-top: 1rem; }
   </style>
 </head>
 <body>
-  <div class="placeholder">
-    <h1 class="placeholder__title">Publication — Coming soon</h1>
-    <p class="placeholder__sub">This page is under development.</p>
-    <a class="placeholder__link" href="index.html">← Back to home</a>
+  <div class="pub-page">
+    <a class="pub-page__back" href="index.html">← Back to home</a>
+    <h1 class="pub-page__title">Publication</h1>
+    <div id="pub-container">
+      <p class="pub-loading" id="pub-loading">Loading…</p>
+      <ul class="pub-list" id="pub-list" hidden></ul>
+      <p class="pub-error" id="pub-error" hidden></p>
+    </div>
   </div>
+  <script>
+    (function () {
+      const ORCID_ID = '0000-0002-1908-9637';
+      const ORCID_WORKS_URL = 'https://pub.orcid.org/v3.0/' + ORCID_ID + '/works';
+      const listEl = document.getElementById('pub-list');
+      const loadingEl = document.getElementById('pub-loading');
+      const errorEl = document.getElementById('pub-error');
+
+      function render(items) {
+        loadingEl.hidden = true;
+        errorEl.hidden = true;
+        if (!items || items.length === 0) {
+          listEl.hidden = false;
+          listEl.innerHTML = '<li class="pub-item"><span class="pub-item__meta">No publications found.</span></li>';
+          return;
+        }
+        listEl.hidden = false;
+        listEl.innerHTML = items.map(function (p) {
+          const titleHtml = p.url
+            ? '<a href="' + escapeHtml(p.url) + '" target="_blank" rel="noopener">' + escapeHtml(p.title) + '</a>'
+            : escapeHtml(p.title);
+          const meta = [p.authors, p.year, p.venue].filter(Boolean).map(escapeHtml).join(' · ');
+          return (
+            '<li class="pub-item">' +
+            '<div class="pub-item__title">' + titleHtml + '</div>' +
+            (meta ? '<div class="pub-item__meta">' + meta + '</div>' : '') +
+            '</li>'
+          );
+        }).join('');
+      }
+
+      function parseOrcidXml(text) {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(text, 'text/xml');
+        const nsCommon = 'http://www.orcid.org/ns/common';
+        const nsWork = 'http://www.orcid.org/ns/work';
+        const summaries = doc.getElementsByTagNameNS(nsWork, 'work-summary');
+        const works = [];
+        const seen = new Set();
+        for (let i = 0; i < summaries.length; i++) {
+          const s = summaries[i];
+          const titleEl = s.getElementsByTagNameNS(nsCommon, 'title')[0];
+          const t = (titleEl && titleEl.textContent) ? titleEl.textContent.trim() : '';
+          const yearEl = s.getElementsByTagNameNS(nsCommon, 'year')[0];
+          const year = yearEl ? yearEl.textContent.trim() : '';
+          const journalEl = s.getElementsByTagNameNS(nsWork, 'journal-title')[0];
+          const venue = journalEl ? journalEl.textContent.trim() : '';
+          let url = '';
+          const urlEl = s.getElementsByTagNameNS(nsCommon, 'url')[0];
+          if (urlEl && urlEl.textContent) url = urlEl.textContent.trim();
+          if (!url) {
+            const ids = s.getElementsByTagNameNS(nsCommon, 'external-id');
+            for (let j = 0; j < ids.length; j++) {
+              const typeEl = ids[j].getElementsByTagNameNS(nsCommon, 'external-id-type')[0];
+              if (typeEl && typeEl.textContent.trim() === 'doi') {
+                const u = ids[j].getElementsByTagNameNS(nsCommon, 'external-id-url')[0];
+                if (u && u.textContent) { url = u.textContent.trim(); break; }
+              }
+            }
+          }
+          const key = (t + '|' + year).toLowerCase();
+          if (t && !seen.has(key)) { seen.add(key); works.push({ title: t, authors: '', year: year, venue: venue, url: url }); }
+        }
+        return works;
+      }
+
+      function parseOrcidJson(data) {
+        const works = [];
+        const groups = data.group || [];
+        const seen = new Set();
+        groups.forEach(function (g) {
+          const list = g['work-summary'] != null ? (Array.isArray(g['work-summary']) ? g['work-summary'] : [g['work-summary']]) : [];
+          list.forEach(function (w) {
+            const titleObj = w.title || w['work-title'];
+            const title = (titleObj && (titleObj.title || titleObj.value)) ? (titleObj.title && titleObj.title.value || titleObj.value) : '';
+            const pub = w['publication-date'] || {};
+            const year = (pub.year && pub.year.value) || pub.year || '';
+            const venue = (w['journal-title'] && w['journal-title'].value) || w['journal-title'] || '';
+            let url = w.url && w.url.value || w.url || '';
+            if (!url && w['external-ids'] && w['external-ids']['external-id']) {
+              const ids = Array.isArray(w['external-ids']['external-id']) ? w['external-ids']['external-id'] : [w['external-ids']['external-id']];
+              const doi = ids.find(function (e) { return (e['external-id-type'] && e['external-id-type'].value === 'doi') || e['external-id-type'] === 'doi'; });
+              if (doi && (doi['external-id-url'] || doi['external-id-url'] && doi['external-id-url'].value)) url = (doi['external-id-url'] && doi['external-id-url'].value) || doi['external-id-url'];
+            }
+            const key = (title + '|' + year).toLowerCase();
+            if (title && !seen.has(key)) { seen.add(key); works.push({ title: title, authors: '', year: year, venue: venue, url: url }); }
+          });
+        });
+        return works;
+      }
+
+      function loadFromOrcid() {
+        return fetch(ORCID_WORKS_URL, { headers: { Accept: 'application/vnd.orcid+json' } })
+          .then(function (r) { return r.text(); })
+          .then(function (text) {
+            const trimmed = text.trim();
+            if (trimmed.startsWith('{') && trimmed.endsWith('}')) return parseOrcidJson(JSON.parse(text));
+            return parseOrcidXml(text);
+          });
+      }
+
+      function escapeHtml(s) {
+        if (s == null) return '';
+        var div = document.createElement('div');
+        div.textContent = s;
+        return div.innerHTML;
+      }
+
+      fetch('publications.json')
+        .then(function (r) {
+          if (r.ok) return r.json();
+          throw new Error('no local file');
+        })
+        .then(function (items) {
+          if (items && items.length > 0) { render(items); return; }
+          return loadFromOrcid().then(render);
+        })
+        .catch(function () {
+          return loadFromOrcid().then(render).catch(function (err) {
+            loadingEl.hidden = true;
+            listEl.hidden = false;
+            listEl.innerHTML = '<li class="pub-item"><span class="pub-item__meta">Could not load publications (try opening the site via a local server, e.g. <code>npx serve .</code>).</span></li>';
+            errorEl.hidden = false;
+            errorEl.textContent = err && err.message ? err.message : 'Network or CORS error.';
+          });
+        });
+    })();
+  </script>
 </body>
 </html>

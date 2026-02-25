@@ -1,0 +1,12 @@
+{
+  "name": "cv-web",
+  "private": true,
+  "description": "Personal homepage and publication list",
+  "scripts": {
+    "fetch-publications": "node scripts/fetch-publications-from-orcid.js",
+    "fetch-publications:researchgate": "node scripts/fetch-publications-from-researchgate.js"
+  },
+  "devDependencies": {
+    "puppeteer": "^23.0.0"
+  }
+}
