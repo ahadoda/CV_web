@@ -142,23 +142,33 @@
         return div.innerHTML;
       }
 
-      fetch('publications.json')
-        .then(function (r) {
-          if (r.ok) return r.json();
-          throw new Error('no local file');
-        })
+      // Prefer ORCID so we never show stale/cached publications.json sample
+      loadFromOrcid()
         .then(function (items) {
           if (items && items.length > 0) { render(items); return; }
-          return loadFromOrcid().then(render);
+          throw new Error('empty');
         })
         .catch(function () {
-          return loadFromOrcid().then(render).catch(function (err) {
-            loadingEl.hidden = true;
-            listEl.hidden = false;
-            listEl.innerHTML = '<li class="pub-item"><span class="pub-item__meta">Could not load publications (try opening the site via a local server, e.g. <code>npx serve .</code>).</span></li>';
-            errorEl.hidden = false;
-            errorEl.textContent = err && err.message ? err.message : 'Network or CORS error.';
-          });
+          return fetch('publications.json')
+            .then(function (r) { return r.ok ? r.json() : []; })
+            .then(function (items) {
+              items = (items || []).filter(function (p) {
+                return p && p.title && !(p.url && p.url.indexOf('researchgate.net/profile') !== -1);
+              });
+              if (items.length > 0) render(items);
+              else {
+                loadingEl.hidden = true;
+                listEl.hidden = false;
+                listEl.innerHTML = '<li class="pub-item"><span class="pub-item__meta">No publications found. If this site is on GitHub Pages, ORCID may be blocked (CORS). Add entries to <code>publications.json</code> or run the ORCID script locally and commit the file.</span></li>';
+              }
+            });
+        })
+        .catch(function (err) {
+          loadingEl.hidden = true;
+          listEl.hidden = false;
+          listEl.innerHTML = '<li class="pub-item"><span class="pub-item__meta">Could not load publications.</span></li>';
+          errorEl.hidden = false;
+          errorEl.textContent = err && err.message ? err.message : 'Network error.';
         });
     })();
   </script>
