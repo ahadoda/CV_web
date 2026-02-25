@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Denghui Hu — Personal Portfolio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;600;700&family=Outfit:wght@300;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app" id="app">
+    <!-- Landing: fluid bg + center name + swipe hint -->
+    <section class="landing" id="landing">
+      <canvas class="landing__fluid" id="fluidCanvas" aria-hidden="true"></canvas>
+      <div class="landing__content">
+        <h1 class="landing__name" data-text="Denghui Hu">Denghui Hu</h1>
+        <p class="landing__hint">Swipe up to enter</p>
+      </div>
+    </section>
+
+    <!-- Main: curved name + photo (shown after swipe up) -->
+    <main class="hero">
+      <section class="hero__left">
+        <div class="hero__curve-mask" aria-hidden="true">
+          <div class="hero__curve-inner">
+            <h1 class="hero__name" data-text="Denghui Hu">Denghui Hu</h1>
+            <p class="hero__tagline">Health & Wellness</p>
+            <nav class="hero__nav" aria-label="Main">
+              <a class="hero__nav-link" href="about.html">About</a>
+              <a class="hero__nav-link" href="interests.html">Interests</a>
+              <a class="hero__nav-link" href="publication.html">Publication</a>
+              <a class="hero__nav-link" href="hobbies.html">Hobbies</a>
+              <a class="hero__nav-link" href="https://www.linkedin.com/in/denghui-hu-8a6a29331" target="_blank" rel="noopener noreferrer">LinkedIn</a>
+            </nav>
+          </div>
+        </div>
+      </section>
+      <section class="hero__right">
+        <div class="hero__photo-wrap">
+          <img
+            src="Main_photo.PNG"
+            alt="Portrait"
+            class="hero__photo"
+            width="800"
+            height="1000"
+          >
+        </div>
+      </section>
+    </main>
+  </div>
+  <script src="fluid.js"></script>
+  <script src="scroll-handler.js"></script>
+</body>
+</html>
